@@ -1,26 +1,52 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Logger, Param, ParseIntPipe, Patch, Post, Query, UsePipes, ValidationPipe } from '@nestjs/common';
 import { CreateEventDTO } from './create-event.dto';
 import { Event } from './event.entity';
 import { UpdateEventDTO } from './update-event.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Attendee } from './attendee.entity';
+import { EventService } from './events.service';
+import { PaginateOptions } from './paginate';
 
 @Controller('/events')
 export class EventsController {
 
+  private readonly logger: Logger = new Logger();
+
   constructor(
     @InjectRepository(Event)
-    private readonly repositoryEvent: Repository<Event>
+    private readonly repositoryEvent: Repository<Event>,
+
+    @InjectRepository(Attendee)
+    private readonly repositoryAttendee: Repository<Attendee>,
+
+    @Inject(EventService)
+    private readonly eventsService:EventService
   ) { }
 
+  @Get('practice')
+  async practice(){
+    const event= await this.repositoryEvent.findOne({where : {id: 1}});
+
+    const attendee = new Attendee();
+    attendee.event = event;
+    attendee.name= 'Salman';
+
+    this.repositoryAttendee.save(attendee);
+  }
+
   @Get()
+  @UsePipes(new ValidationPipe({transform: true}))
   findAll() {
-    return this.repositoryEvent.find();
+    this.logger.warn("Find all events");
+
+    return this.eventsService.getEventsPaginated({currentPage: 1, limit: 10});
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: string): Promise<Event> {
-    return this.repositoryEvent.findOneBy({ id: parseInt(id) })
+
+    return this.eventsService.getEvent(parseInt(id))
   }
 
   @Post()
